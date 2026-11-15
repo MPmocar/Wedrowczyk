@@ -1,0 +1,9 @@
+# Wirtualne środowisko (lokalne, odtwarzane z requirements.txt)
+.venv/
+
+# Cache Pythona
+__pycache__/
+*.pyc
+
+# Sekrety Streamlit (klucze API w v2 - nigdy do repo)
+.streamlit/secrets.toml
