@@ -1,7 +1,10 @@
+import time
+
 import streamlit as st
 from streamlit_folium import st_folium
 from streamlit_searchbox import st_searchbox
 
+from baza import zapisz_trase
 from distance import macierz_odleglosci, minuty_marszu
 from geocoding import podpowiedzi
 from mapa import zbuduj_mape
@@ -84,11 +87,18 @@ if st.button("Wyznacz trasę"):
         st.warning("Ustaw punkt startu i dodaj co najmniej jedno miejsce.")
     else:
         punkty = [st.session_state.start] + miejsca
+        nazwy = [etykieta for etykieta, _ in punkty]
         wsp = [w for _, w in punkty]
         macierz = macierz_odleglosci(wsp)
+        start_obliczen = time.perf_counter()
         trasa, dlugosc = brute_force(macierz)
+        czas_obliczen_ms = (time.perf_counter() - start_obliczen) * 1000
+        try:
+            zapisz_trase(nazwy, wsp, macierz, trasa, dlugosc, "brute_force", czas_obliczen_ms)
+        except Exception as e:
+            st.warning(f"Nie zapisano trasy w bazie: {e}")
         st.session_state.wynik = {
-            "nazwy": [etykieta for etykieta, _ in punkty],
+            "nazwy": nazwy,
             "wsp": wsp,
             "macierz": macierz,
             "trasa": trasa,

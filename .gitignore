@@ -5,5 +5,11 @@
 __pycache__/
 *.pyc
 
+# Lokalna baza DuckDB (zawiera adresy, nie do publicznego repo)
+dane/
+
+# Prywatne zapytania do bazy (tylko lokalnie)
+zapytania.py
+
 # Sekrety Streamlit (klucze API w v2 - nigdy do repo)
 .streamlit/secrets.toml
