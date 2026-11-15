@@ -1,4 +1,5 @@
 streamlit
-geopy
+requests
 folium
 streamlit-folium
+streamlit-searchbox

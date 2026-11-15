@@ -1,42 +1,78 @@
 import streamlit as st
+from streamlit_searchbox import st_searchbox
 
 from distance import macierz_odleglosci, minuty_marszu
-from geocoding import wspolrzedne
+from geocoding import podpowiedzi
 from solver import brute_force
 
 MAX_MIEJSC = 8
 
+
+def _szukaj(fraza, blisko):
+    """Podpowiedzi dla searchboxa: lista (tekst do wyświetlenia, wartość)."""
+    try:
+        wyniki = podpowiedzi(fraza, blisko)
+    except Exception:
+        return []
+    unikalne = dict(wyniki)  # usuwa duplikaty etykiet
+    return [(etykieta, (etykieta, wsp)) for etykieta, wsp in unikalne.items()]
+
+
+def szukaj_startu(fraza):
+    return _szukaj(fraza, None)
+
+
+def szukaj_miejsca(fraza):
+    start = st.session_state.start
+    return _szukaj(fraza, start[1] if start else None)
+
+
+st.session_state.setdefault("start", None)  # (etykieta, (lat, lon))
+st.session_state.setdefault("miejsca", [])  # lista takich krotek
+st.session_state.setdefault("licznik", 0)   # do czyszczenia pola po dodaniu
+
 st.title("Wędrowczyk")
 
-miasto = st.text_input("Miasto", placeholder="np. Kraków")
-start = st.text_input("Punkt startu (adres hotelu)")
-miejsca_tekst = st.text_area("Miejsca do zwiedzenia (jedno w linii)", height=200)
+st.subheader("1. Punkt startu")
+wybrany_start = st_searchbox(
+    szukaj_startu, key="sb_start", placeholder="Adres hotelu lub miejsce", debounce=400
+)
+if st.button("Ustaw jako start", disabled=wybrany_start is None):
+    st.session_state.start = wybrany_start
+if st.session_state.start:
+    st.caption(f"Start: {st.session_state.start[0]}")
+
+st.subheader("2. Miejsca do zwiedzenia")
+miejsca = st.session_state.miejsca
+wybrane = st_searchbox(
+    szukaj_miejsca,
+    key=f"sb_miejsce_{st.session_state.licznik}",
+    placeholder="Nazwa miejsca lub adres",
+    debounce=400,
+)
+if st.button("Dodaj do listy", disabled=wybrane is None):
+    if len(miejsca) >= MAX_MIEJSC:
+        st.warning(f"Maksymalnie {MAX_MIEJSC} miejsc (limit brute force).")
+    elif wybrane in miejsca:
+        st.info("To miejsce już jest na liście.")
+    else:
+        miejsca.append(wybrane)
+        st.session_state.licznik += 1
+        st.rerun()
+for nr, (etykieta, _) in enumerate(miejsca, start=1):
+    st.write(f"{nr}. {etykieta}")
 
 if st.button("Wyznacz trasę"):
-    miejsca = [m.strip() for m in miejsca_tekst.splitlines() if m.strip()]
-    if not miasto or not start or not miejsca:
-        st.warning("Uzupełnij miasto, punkt startu i co najmniej jedno miejsce.")
-    elif len(miejsca) > MAX_MIEJSC:
-        st.warning(f"Maksymalnie {MAX_MIEJSC} miejsc (limit brute force).")
+    if not st.session_state.start or not miejsca:
+        st.warning("Ustaw punkt startu i dodaj co najmniej jedno miejsce.")
     else:
-        nazwy = [start] + miejsca
-        try:
-            with st.spinner("Szukam miejsc na mapie..."):
-                punkty = [wspolrzedne(f"{n}, {miasto}") for n in nazwy]
-        except Exception as e:
-            st.error(f"Błąd połączenia z Nominatim: {e}")
-            st.stop()
-
-        brak = [n for n, p in zip(nazwy, punkty) if p is None]
-        if brak:
-            st.error("Nie znaleziono: " + ", ".join(brak))
-            st.stop()
-
-        macierz = macierz_odleglosci(punkty)
+        punkty = [st.session_state.start] + miejsca
+        nazwy = [etykieta for etykieta, _ in punkty]
+        macierz = macierz_odleglosci([wsp for _, wsp in punkty])
         trasa, dlugosc = brute_force(macierz)
 
         st.subheader("Kolejność zwiedzania")
-        st.write(f"Start: {start}")
+        st.write(f"Start: {nazwy[0]}")
         narastajaco = 0
         for nr, (skad, dokad) in enumerate(zip(trasa, trasa[1:]), start=1):
             odcinek = minuty_marszu(macierz[skad][dokad])
