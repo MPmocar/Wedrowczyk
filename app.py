@@ -71,8 +71,13 @@ if st.button("Dodaj do listy", disabled=wybrane is None):
         st.session_state.licznik += 1
         st.session_state.wynik = None
         st.rerun()
-for nr, (etykieta, _) in enumerate(miejsca, start=1):
-    st.write(f"{nr}. {etykieta}")
+if miejsca:
+    st.caption("Dotknij miejsca, aby usunąć je z listy:")
+for i, (etykieta, _) in enumerate(miejsca):
+    if st.button(f"✕ {i + 1}. {etykieta}", key=f"usun_{i}"):
+        miejsca.pop(i)
+        st.session_state.wynik = None
+        st.rerun()
 
 if st.button("Wyczyść wszystko"):
     st.session_state.start = None
