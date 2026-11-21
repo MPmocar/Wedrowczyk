@@ -1,9 +1,12 @@
+import logging
+
 import streamlit as st
 from streamlit_folium import st_folium
 from streamlit_searchbox import st_searchbox
 
 from distance import macierz_odleglosci, minuty_marszu
 from geocoding import podpowiedzi
+from historia import zapisz_trase
 from mapa import zbuduj_mape
 from solver import brute_force
 
@@ -101,6 +104,14 @@ if st.button("Wyznacz trasę"):
         macierz = macierz_odleglosci(wsp)
         wroc = st.session_state.wroc
         trasa, dlugosc = brute_force(macierz, wroc_do_startu=wroc)
+        st.session_state.do_zapisu = {
+            "nazwy": nazwy,
+            "wspolrzedne": wsp,
+            "macierz": macierz,
+            "trasa": trasa,
+            "dlugosc": dlugosc,
+            "wroc_do_startu": wroc,
+        }
         st.session_state.wynik = {
             "nazwy": nazwy,
             "wsp": wsp,
@@ -136,3 +147,11 @@ if wynik:
     )
 
 st.caption("Dane map: © OpenStreetMap contributors")
+
+# Zapis do arkusza na samym końcu, żeby nie opóźniał wyświetlenia wyniku.
+dane_do_zapisu = st.session_state.pop("do_zapisu", None)
+if dane_do_zapisu:
+    try:
+        zapisz_trase(**dane_do_zapisu)
+    except Exception:
+        logging.getLogger(__name__).exception("Nie zapisano trasy w arkuszu")
