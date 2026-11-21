@@ -1,9 +1,11 @@
 import folium
 
 
-def zbuduj_mape(etykiety, wspolrzedne, trasa):
+def zbuduj_mape(etykiety, wspolrzedne, trasa, wroc=True):
     """Mapa z numerowanymi znacznikami i linią trasy (S = start)."""
-    kolejnosc = [wspolrzedne[i] for i in trasa] + [wspolrzedne[trasa[0]]]
+    kolejnosc = [wspolrzedne[i] for i in trasa]
+    if wroc:
+        kolejnosc.append(wspolrzedne[trasa[0]])
     mapa = folium.Map(location=wspolrzedne[0], zoom_start=13)
     folium.PolyLine(kolejnosc, weight=4, color="#3388ff", opacity=0.8).add_to(mapa)
     for nr, idx in enumerate(trasa):

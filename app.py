@@ -1,10 +1,7 @@
-import time
-
 import streamlit as st
 from streamlit_folium import st_folium
 from streamlit_searchbox import st_searchbox
 
-from baza import zapisz_trase
 from distance import macierz_odleglosci, minuty_marszu
 from geocoding import podpowiedzi
 from mapa import zbuduj_mape
@@ -87,6 +84,13 @@ if st.button("Wyczyść wszystko"):
     st.session_state.licznik_startu += 1
     st.rerun()
 
+st.toggle(
+    "Wróć do punktu startu na końcu",
+    value=True,
+    key="wroc",
+    on_change=lambda: st.session_state.update(wynik=None),
+)
+
 if st.button("Wyznacz trasę"):
     if not st.session_state.start or not miejsca:
         st.warning("Ustaw punkt startu i dodaj co najmniej jedno miejsce.")
@@ -95,19 +99,15 @@ if st.button("Wyznacz trasę"):
         nazwy = [etykieta for etykieta, _ in punkty]
         wsp = [w for _, w in punkty]
         macierz = macierz_odleglosci(wsp)
-        start_obliczen = time.perf_counter()
-        trasa, dlugosc = brute_force(macierz)
-        czas_obliczen_ms = (time.perf_counter() - start_obliczen) * 1000
-        try:
-            zapisz_trase(nazwy, wsp, macierz, trasa, dlugosc, "brute_force", czas_obliczen_ms)
-        except Exception as e:
-            st.warning(f"Nie zapisano trasy w bazie: {e}")
+        wroc = st.session_state.wroc
+        trasa, dlugosc = brute_force(macierz, wroc_do_startu=wroc)
         st.session_state.wynik = {
             "nazwy": nazwy,
             "wsp": wsp,
             "macierz": macierz,
             "trasa": trasa,
             "dlugosc": dlugosc,
+            "wroc": wroc,
         }
 
 wynik = st.session_state.wynik
@@ -121,14 +121,15 @@ if wynik:
         narastajaco += odcinek
         st.markdown(f"**{nr}. {nazwy[dokad]}**")
         st.caption(f"{odcinek:.0f} min od poprzedniego punktu · {narastajaco:.0f} min od startu")
-    powrot = minuty_marszu(macierz[trasa[-1]][0])
-    st.markdown(f"**Powrót do startu: {nazwy[0]}**")
-    st.caption(f"{powrot:.0f} min od poprzedniego punktu · {narastajaco + powrot:.0f} min od startu")
+    if wynik["wroc"]:
+        powrot = minuty_marszu(macierz[trasa[-1]][0])
+        st.markdown(f"**Powrót do startu: {nazwy[0]}**")
+        st.caption(f"{powrot:.0f} min od poprzedniego punktu · {narastajaco + powrot:.0f} min od startu")
     st.success(f"Łącznie ok. {minuty_marszu(wynik['dlugosc']):.0f} min marszu")
 
     st.subheader("Mapa")
     st_folium(
-        zbuduj_mape(nazwy, wynik["wsp"], trasa),
+        zbuduj_mape(nazwy, wynik["wsp"], trasa, wynik["wroc"]),
         height=450,
         use_container_width=True,
         returned_objects=[],
